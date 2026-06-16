@@ -10,6 +10,36 @@
 
 ---
 
+## TDD Methodology — Red-Green-Refactor (RGR)
+
+Sources: [Beyond Red, Green, Refactor (Incubyte 2025)](https://blog.incubyte.co/blog/a-practical-approach-to-test-driven-development-beyond-red-green-refactor/) · [Practicing TDD the Right Way (Medium 2025)](https://medium.com/@gulsaba.fiha/beyond-the-buzz-practicing-tdd-the-right-way-red-green-refactor-57f6af3ae317)
+
+**Every repository and service follows this cycle — no exceptions:**
+
+```
+🔴 RED    → Write the test first. It must FAIL (usually: compilation error because
+             the class/interface doesn't exist yet). If it doesn't fail, the test is wrong.
+
+🟢 GREEN  → Write the minimum code to make the test pass. No extras, no polish.
+             Run tests again — all must be green before moving on.
+
+🔵 COMMIT → Commit now, while tests are green. Small commits = easy to revert.
+
+🔄 REFACTOR → Clean up names, extract duplication, improve readability.
+               Tests must stay green throughout.
+```
+
+**Strict task order for each entity:**
+1. Write DTOs (needed for tests to compile)
+2. Write `XxxRepositoryTest` — run → 🔴 RED (can't find `XxxRepository`)
+3. Write `XxxRepository` — run → 🟢 GREEN
+4. Commit
+5. Write `XxxServiceTest` — run → 🔴 RED (can't find `XxxService`)
+6. Write `XxxService` — run → 🟢 GREEN
+7. Commit
+
+---
+
 ## File Map
 
 ```
@@ -33,10 +63,11 @@ backend/
     │   │   │   ├── Trip.kt
     │   │   │   ├── TripStatus.kt
     │   │   │   ├── TripRepository.kt
-    │   │   │   ├── TripService.kt
     │   │   │   ├── TripFacade.kt
     │   │   │   ├── TripController.kt
     │   │   │   ├── TripMappings.kt
+    │   │   │   ├── service/
+    │   │   │   │   └── TripService.kt          ← service subfolder
     │   │   │   └── dto/
     │   │   │       ├── CreateTripRequest.kt
     │   │   │       ├── UpdateTripRequest.kt
@@ -46,10 +77,11 @@ backend/
     │   │   │   ├── Waypoint.kt
     │   │   │   ├── WaypointStatus.kt
     │   │   │   ├── WaypointRepository.kt
-    │   │   │   ├── WaypointService.kt
     │   │   │   ├── WaypointFacade.kt
     │   │   │   ├── WaypointController.kt
     │   │   │   ├── WaypointMappings.kt
+    │   │   │   ├── service/
+    │   │   │   │   └── WaypointService.kt      ← service subfolder
     │   │   │   └── dto/
     │   │   │       ├── CreateWaypointRequest.kt
     │   │   │       ├── UpdateWaypointRequest.kt
@@ -59,8 +91,9 @@ backend/
     │   │       ├── StatusEvent.kt
     │   │       ├── StatusEventType.kt
     │   │       ├── StatusEventRepository.kt
-    │   │       ├── StatusEventService.kt
-    │   │       └── SseController.kt
+    │   │       ├── SseController.kt
+    │   │       └── service/
+    │   │           └── StatusEventService.kt   ← service subfolder
     │   └── resources/
     │       ├── application.yml
     │       ├── application-local.yml
@@ -72,7 +105,8 @@ backend/
         ├── trip/
         │   └── TripServiceTest.kt
         └── waypoint/
-            └── WaypointServiceTest.kt
+            ├── WaypointRepositoryTest.kt   ← [RED] before repo
+            └── WaypointServiceTest.kt      ← [RED] before service
 ```
 
 ---
@@ -1063,98 +1097,17 @@ backend/
   }
   ```
 
-### Task 31: Write WaypointService stub (needed for TripFacade to compile)
-
-> Full WaypointService comes in Phase 5. This stub satisfies the compile dependency.
-
-- [ ] Create `backend/src/main/kotlin/com/routr/waypoint/WaypointService.kt`:
-  ```kotlin
-  package com.routr.waypoint
-
-  import com.routr.common.exception.AppException
-  import com.routr.trip.Trip
-  import com.routr.waypoint.dto.CreateWaypointRequest
-  import com.routr.waypoint.dto.ReorderWaypointsRequest
-  import com.routr.waypoint.dto.UpdateWaypointRequest
-  import com.routr.waypoint.dto.WaypointResponse
-  import jakarta.transaction.Transactional
-  import org.springframework.stereotype.Service
-  import java.time.Instant
-  import java.util.UUID
-
-  @Service
-  class WaypointService(private val waypointRepository: WaypointRepository) {
-
-      fun addWaypoint(trip: Trip, request: CreateWaypointRequest): WaypointResponse {
-          val nextOrder = (waypointRepository.findByTripIdOrderByOrderAsc(trip.id)
-              .maxOfOrNull { it.order } ?: 0) + 1
-          val waypoint = Waypoint(
-              trip = trip,
-              order = nextOrder,
-              name = request.name,
-              address = request.address,
-              lat = request.lat,
-              lng = request.lng,
-              estimatedArrival = request.estimatedArrival,
-              notes = request.notes
-          )
-          return waypointRepository.save(waypoint).toResponse()
-      }
-
-      fun updateWaypoint(tripId: UUID, waypointId: UUID, request: UpdateWaypointRequest): WaypointResponse {
-          val waypoint = findByIdAndTripId(waypointId, tripId)
-          request.name?.let { waypoint.name = it }
-          request.address?.let { waypoint.address = it }
-          request.lat?.let { waypoint.lat = it }
-          request.lng?.let { waypoint.lng = it }
-          request.estimatedArrival?.let { waypoint.estimatedArrival = it }
-          request.notes?.let { waypoint.notes = it }
-          return waypointRepository.save(waypoint).toResponse()
-      }
-
-      fun deleteWaypoint(tripId: UUID, waypointId: UUID) {
-          val waypoint = findByIdAndTripId(waypointId, tripId)
-          waypointRepository.delete(waypoint)
-      }
-
-      @Transactional
-      fun reorderWaypoints(tripId: UUID, request: ReorderWaypointsRequest) {
-          val waypointMap = waypointRepository.findByTripIdOrderByOrderAsc(tripId).associateBy { it.id }
-          request.order.forEachIndexed { index, id ->
-              waypointMap[id]?.order = index + 1
-          }
-          waypointRepository.saveAll(waypointMap.values)
-      }
-
-      fun markArrived(waypointId: UUID, tripId: UUID): Waypoint {
-          val waypoint = findByIdAndTripId(waypointId, tripId)
-          waypoint.status = WaypointStatus.ARRIVED
-          waypoint.actualArrival = Instant.now()
-          return waypointRepository.save(waypoint)
-      }
-
-      fun markSkipped(waypointId: UUID, tripId: UUID): Waypoint {
-          val waypoint = findByIdAndTripId(waypointId, tripId)
-          waypoint.status = WaypointStatus.SKIPPED
-          return waypointRepository.save(waypoint)
-      }
-
-      fun findByIdAndTripId(waypointId: UUID, tripId: UUID): Waypoint =
-          waypointRepository.findByIdAndTripId(waypointId, tripId)
-              ?: throw AppException.NotFound("Waypoint", waypointId)
-  }
-  ```
-
-### Task 32: Write TripFacade
+### Task 31: Write TripFacade
 
 - [ ] Create `backend/src/main/kotlin/com/routr/trip/TripFacade.kt`:
   ```kotlin
   package com.routr.trip
 
-  import com.routr.event.StatusEventService
+  import com.routr.event.service.StatusEventService
   import com.routr.event.StatusEventType
   import com.routr.trip.dto.TripResponse
-  import com.routr.waypoint.WaypointService
+  import com.routr.trip.service.TripService
+  import com.routr.waypoint.service.WaypointService
   import jakarta.transaction.Transactional
   import org.springframework.stereotype.Component
   import java.util.UUID
@@ -1202,6 +1155,7 @@ backend/
   import com.routr.trip.dto.TripResponse
   import com.routr.trip.dto.TripSummaryResponse
   import com.routr.trip.dto.UpdateTripRequest
+  import com.routr.trip.service.TripService
   import jakarta.validation.Valid
   import org.springframework.http.HttpStatus
   import org.springframework.http.ResponseEntity
@@ -1287,7 +1241,11 @@ backend/
 
 ## Phase 5 — Waypoint CRUD
 
+> **TDD order:** DTOs → RepositoryTest [🔴 RED] → Repository [🟢 GREEN] → ServiceTest [🔴 RED] → Service [🟢 GREEN] → Facade → Controller
+
 ### Task 35: Write remaining Waypoint DTOs
+
+> Write DTOs first — tests need to import them to compile.
 
 - [ ] Create `backend/src/main/kotlin/com/routr/waypoint/dto/CreateWaypointRequest.kt`:
   ```kotlin
@@ -1333,7 +1291,49 @@ backend/
   data class ReorderWaypointsRequest(val order: List<UUID>)
   ```
 
-### Task 36: Write WaypointRepository
+### Task 36: Write WaypointRepositoryTest [🔴 RED]
+
+> Write this test BEFORE creating `WaypointRepository.kt`. It will fail to compile — that is the RED state confirming your test is actually testing something real.
+
+- [ ] Create `backend/src/test/kotlin/com/routr/waypoint/WaypointRepositoryTest.kt`:
+  ```kotlin
+  package com.routr.waypoint
+
+  import io.mockk.every
+  import io.mockk.mockk
+  import org.junit.jupiter.api.Assertions.*
+  import org.junit.jupiter.api.Test
+  import java.util.UUID
+
+  class WaypointRepositoryTest {
+
+      private val repo = mockk<WaypointRepository>()
+
+      @Test
+      fun `WaypointRepository has findByTripIdOrderByOrderAsc method`() {
+          val tripId = UUID.randomUUID()
+          every { repo.findByTripIdOrderByOrderAsc(tripId) } returns emptyList()
+          val result = repo.findByTripIdOrderByOrderAsc(tripId)
+          assertEquals(emptyList<Waypoint>(), result)
+      }
+
+      @Test
+      fun `WaypointRepository has findByIdAndTripId method returning null when not found`() {
+          val id = UUID.randomUUID()
+          val tripId = UUID.randomUUID()
+          every { repo.findByIdAndTripId(id, tripId) } returns null
+          val result = repo.findByIdAndTripId(id, tripId)
+          assertNull(result)
+      }
+  }
+  ```
+- [ ] Run the test:
+  ```bash
+  ./gradlew test --tests "com.routr.waypoint.WaypointRepositoryTest"
+  ```
+  Expected: **compilation FAIL** — `WaypointRepository` does not exist yet. This is the 🔴 RED state — correct!
+
+### Task 37: Write WaypointRepository [🟢 GREEN]
 
 - [ ] Create `backend/src/main/kotlin/com/routr/waypoint/WaypointRepository.kt`:
   ```kotlin
@@ -1347,8 +1347,21 @@ backend/
       fun findByIdAndTripId(id: UUID, tripId: UUID): Waypoint?
   }
   ```
+- [ ] Run the test again:
+  ```bash
+  ./gradlew test --tests "com.routr.waypoint.WaypointRepositoryTest"
+  ```
+  Expected: **both tests pass** — 🟢 GREEN.
+- [ ] Commit:
+  ```bash
+  git add backend/src/main/kotlin/com/routr/waypoint/WaypointRepository.kt \
+          backend/src/test/kotlin/com/routr/waypoint/WaypointRepositoryTest.kt
+  git commit -m "feat: WaypointRepository — TDD RED→GREEN"
+  ```
 
-### Task 37: Write WaypointService tests first (TDD)
+### Task 38: Write WaypointServiceTest [🔴 RED]
+
+> Write service tests BEFORE creating `WaypointService.kt`. Tests will fail to compile — that's the RED state.
 
 - [ ] Create `backend/src/test/kotlin/com/routr/waypoint/WaypointServiceTest.kt`:
   ```kotlin
@@ -1357,9 +1370,9 @@ backend/
   import com.routr.common.exception.AppException
   import com.routr.trip.Trip
   import com.routr.waypoint.dto.CreateWaypointRequest
+  import com.routr.waypoint.service.WaypointService
   import io.mockk.every
   import io.mockk.mockk
-  import io.mockk.verify
   import org.junit.jupiter.api.Assertions.*
   import org.junit.jupiter.api.Test
   import org.junit.jupiter.api.assertThrows
@@ -1374,59 +1387,163 @@ backend/
 
       @Test
       fun `addWaypoint assigns order 1 when no existing waypoints`() {
+          // Arrange
           every { repo.findByTripIdOrderByOrderAsc(trip.id) } returns emptyList()
           every { repo.save(any()) } answers { firstArg() }
-
           val request = CreateWaypointRequest(
               name = "Stop A", address = "Seoul", lat = BigDecimal("37.5"), lng = BigDecimal("127.0")
           )
+
+          // Act
           val result = service.addWaypoint(trip, request)
 
+          // Assert
           assertEquals(1, result.order)
       }
 
       @Test
       fun `addWaypoint assigns next order after existing waypoints`() {
+          // Arrange
           val existing = Waypoint(trip = trip, order = 3, name = "C", address = "C",
               lat = BigDecimal("37.5"), lng = BigDecimal("127.0"))
           every { repo.findByTripIdOrderByOrderAsc(trip.id) } returns listOf(existing)
           every { repo.save(any()) } answers { firstArg() }
-
           val request = CreateWaypointRequest(
               name = "D", address = "D", lat = BigDecimal("37.6"), lng = BigDecimal("127.1")
           )
+
+          // Act
           val result = service.addWaypoint(trip, request)
 
+          // Assert
           assertEquals(4, result.order)
       }
 
       @Test
       fun `findByIdAndTripId throws NotFound when waypoint does not exist`() {
+          // Arrange
           val waypointId = UUID.randomUUID()
           every { repo.findByIdAndTripId(waypointId, trip.id) } returns null
 
+          // Act + Assert
           assertThrows<AppException.NotFound> {
               service.findByIdAndTripId(waypointId, trip.id)
           }
       }
   }
   ```
-- [ ] Run:
+- [ ] Run the test:
   ```bash
   ./gradlew test --tests "com.routr.waypoint.WaypointServiceTest"
   ```
-  Expected: tests compile and pass (WaypointService was already written in Task 31).
+  Expected: **compilation FAIL** — `WaypointService` does not exist yet. This is the 🔴 RED state — correct!
 
-### Task 38: Write WaypointFacade
+### Task 39: Write WaypointService [🟢 GREEN]
+
+- [ ] Create `backend/src/main/kotlin/com/routr/waypoint/service/WaypointService.kt`:
+  ```kotlin
+  package com.routr.waypoint.service
+
+  import com.routr.common.exception.AppException
+  import com.routr.trip.Trip
+  import com.routr.waypoint.Waypoint
+  import com.routr.waypoint.WaypointRepository
+  import com.routr.waypoint.WaypointStatus
+  import com.routr.waypoint.dto.CreateWaypointRequest
+  import com.routr.waypoint.dto.ReorderWaypointsRequest
+  import com.routr.waypoint.dto.UpdateWaypointRequest
+  import com.routr.waypoint.dto.WaypointResponse
+  import com.routr.waypoint.toResponse
+  import jakarta.transaction.Transactional
+  import org.springframework.stereotype.Service
+  import java.time.Instant
+  import java.util.UUID
+
+  @Service
+  class WaypointService(private val waypointRepository: WaypointRepository) {
+
+      fun addWaypoint(trip: Trip, request: CreateWaypointRequest): WaypointResponse {
+          val nextOrder = (waypointRepository.findByTripIdOrderByOrderAsc(trip.id)
+              .maxOfOrNull { it.order } ?: 0) + 1
+          val waypoint = Waypoint(
+              trip = trip,
+              order = nextOrder,
+              name = request.name,
+              address = request.address,
+              lat = request.lat,
+              lng = request.lng,
+              estimatedArrival = request.estimatedArrival,
+              notes = request.notes
+          )
+          return waypointRepository.save(waypoint).toResponse()
+      }
+
+      fun updateWaypoint(tripId: UUID, waypointId: UUID, request: UpdateWaypointRequest): WaypointResponse {
+          val waypoint = findByIdAndTripId(waypointId, tripId)
+          request.name?.let { waypoint.name = it }
+          request.address?.let { waypoint.address = it }
+          request.lat?.let { waypoint.lat = it }
+          request.lng?.let { waypoint.lng = it }
+          request.estimatedArrival?.let { waypoint.estimatedArrival = it }
+          request.notes?.let { waypoint.notes = it }
+          return waypointRepository.save(waypoint).toResponse()
+      }
+
+      fun deleteWaypoint(tripId: UUID, waypointId: UUID) {
+          val waypoint = findByIdAndTripId(waypointId, tripId)
+          waypointRepository.delete(waypoint)
+      }
+
+      @Transactional
+      fun reorderWaypoints(tripId: UUID, request: ReorderWaypointsRequest) {
+          val waypointMap = waypointRepository.findByTripIdOrderByOrderAsc(tripId).associateBy { it.id }
+          request.order.forEachIndexed { index, id ->
+              waypointMap[id]?.order = index + 1
+          }
+          waypointRepository.saveAll(waypointMap.values)
+      }
+
+      fun markArrived(waypointId: UUID, tripId: UUID): Waypoint {
+          val waypoint = findByIdAndTripId(waypointId, tripId)
+          waypoint.status = WaypointStatus.ARRIVED
+          waypoint.actualArrival = Instant.now()
+          return waypointRepository.save(waypoint)
+      }
+
+      fun markSkipped(waypointId: UUID, tripId: UUID): Waypoint {
+          val waypoint = findByIdAndTripId(waypointId, tripId)
+          waypoint.status = WaypointStatus.SKIPPED
+          return waypointRepository.save(waypoint)
+      }
+
+      fun findByIdAndTripId(waypointId: UUID, tripId: UUID): Waypoint =
+          waypointRepository.findByIdAndTripId(waypointId, tripId)
+              ?: throw AppException.NotFound("Waypoint", waypointId)
+  }
+  ```
+- [ ] Run the tests again:
+  ```bash
+  ./gradlew test --tests "com.routr.waypoint.WaypointServiceTest"
+  ```
+  Expected: **all 3 tests pass** — 🟢 GREEN.
+- [ ] Commit:
+  ```bash
+  git add backend/src/main/kotlin/com/routr/waypoint/service/ \
+          backend/src/test/kotlin/com/routr/waypoint/WaypointServiceTest.kt
+  git commit -m "feat: WaypointService — TDD RED→GREEN"
+  ```
+
+### Task 40: Write WaypointFacade
 
 - [ ] Create `backend/src/main/kotlin/com/routr/waypoint/WaypointFacade.kt`:
   ```kotlin
   package com.routr.waypoint
 
-  import com.routr.event.StatusEventService
   import com.routr.event.StatusEventType
-  import com.routr.trip.TripService
+  import com.routr.event.service.StatusEventService
+  import com.routr.trip.service.TripService
   import com.routr.waypoint.dto.WaypointResponse
+  import com.routr.waypoint.service.WaypointService
   import jakarta.transaction.Transactional
   import org.springframework.stereotype.Component
   import java.util.UUID
@@ -1455,18 +1572,19 @@ backend/
   }
   ```
 
-### Task 39: Write WaypointController
+### Task 41: Write WaypointController
 
 - [ ] Create `backend/src/main/kotlin/com/routr/waypoint/WaypointController.kt`:
   ```kotlin
   package com.routr.waypoint
 
   import com.routr.common.security.clerkUserId
-  import com.routr.trip.TripService
+  import com.routr.trip.service.TripService
   import com.routr.waypoint.dto.CreateWaypointRequest
   import com.routr.waypoint.dto.ReorderWaypointsRequest
   import com.routr.waypoint.dto.UpdateWaypointRequest
   import com.routr.waypoint.dto.WaypointResponse
+  import com.routr.waypoint.service.WaypointService
   import jakarta.validation.Valid
   import org.springframework.http.HttpStatus
   import org.springframework.http.ResponseEntity
@@ -1543,7 +1661,7 @@ backend/
   }
   ```
 
-### Task 40: Build and manually test Waypoint CRUD
+### Task 42: Build and manually test Waypoint CRUD
 
 - [ ] Run all tests:
   ```bash
@@ -1566,14 +1684,14 @@ backend/
 - [ ] Commit:
   ```bash
   git add backend/src/
-  git commit -m "feat: Waypoint CRUD — repository, service, facade, controller, DTOs"
+  git commit -m "feat: Waypoint CRUD — facade, controller"
   ```
 
 ---
 
 ## Phase 6 — SSE
 
-### Task 41: Write SseController
+### Task 43: Write SseController
 
 - [ ] Create `backend/src/main/kotlin/com/routr/event/SseController.kt`:
   ```kotlin
@@ -1581,7 +1699,8 @@ backend/
 
   import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
   import com.routr.common.security.clerkUserId
-  import com.routr.trip.TripService
+  import com.routr.event.service.StatusEventService
+  import com.routr.trip.service.TripService
   import org.springframework.http.MediaType
   import org.springframework.scheduling.TaskScheduler
   import org.springframework.security.core.Authentication
@@ -1597,9 +1716,7 @@ backend/
       private val statusEventService: StatusEventService,
       private val taskScheduler: TaskScheduler
   ) {
-      private val mapper = jacksonObjectMapper().apply {
-          findAndRegisterModules()
-      }
+      private val mapper = jacksonObjectMapper().apply { findAndRegisterModules() }
 
       @GetMapping(produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
       fun streamEvents(
@@ -1642,9 +1759,8 @@ backend/
       }
   }
   ```
-- [ ] Register a `TaskScheduler` bean — add this to `SecurityConfig.kt` or create a new `SchedulerConfig.kt`:
+- [ ] Create `backend/src/main/kotlin/com/routr/common/config/SchedulerConfig.kt`:
   ```kotlin
-  // backend/src/main/kotlin/com/routr/common/config/SchedulerConfig.kt
   package com.routr.common.config
 
   import org.springframework.context.annotation.Bean
@@ -1660,7 +1776,7 @@ backend/
   }
   ```
 
-### Task 42: Build, test SSE stream
+### Task 44: Build, test SSE stream
 
 - [ ] Run all tests:
   ```bash
@@ -1682,7 +1798,7 @@ backend/
 
 ## Phase 7 — Deploy to Railway
 
-### Task 43: Write Dockerfile
+### Task 45: Write Dockerfile
 
 - [ ] Create `backend/Dockerfile`:
   ```dockerfile
@@ -1693,7 +1809,7 @@ backend/
   ENTRYPOINT ["java", "-jar", "app.jar"]
   ```
 
-### Task 44: Deploy to Railway
+### Task 46: Deploy to Railway
 
 - [ ] Build the fat jar:
   ```bash
@@ -1704,10 +1820,12 @@ backend/
 - [ ] Set the **Root Directory** to `backend` in Railway settings.
 - [ ] Add environment variables in Railway dashboard:
   ```
-  DATABASE_URL=postgresql://your-neon-connection-string/routr?sslmode=require
+  DATABASE_URL=jdbc:postgresql://your-neon-host/routr?sslmode=require&channel_binding=require
   CLERK_JWKS_URL=https://your-clerk-domain/.well-known/jwks.json
   CLERK_ISSUER_URI=https://your-clerk-domain
   FRONTEND_URL=https://routr.vercel.app
+  SPRING_DATASOURCE_USERNAME=neondb_owner
+  SPRING_DATASOURCE_PASSWORD=your-password
   ```
 - [ ] Trigger a deploy. Watch the build logs — expected: `Started RoutrApplication`.
 - [ ] Copy the Railway public URL (e.g. `https://routr-backend.up.railway.app`).
