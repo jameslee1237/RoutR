@@ -1,7 +1,7 @@
 # RoutR — Design Spec
 
 **Date:** 2026-06-16
-**Stack:** Kotlin Spring Boot 3.x · Next.js 15 · PostgreSQL (Neon) · Clerk auth · Deck.GL
+**Stack:** Kotlin Spring Boot 3.x · Next.js 15 · PostgreSQL (Neon) · Clerk auth · Deck.GL · Mapbox Directions API
 
 ---
 
@@ -49,6 +49,7 @@ Option C (DB-first, then incremental backend, then frontend) was chosen because:
 - Cursor extensions: Kotlin (fwcd), Extension Pack for Java (Microsoft), Spring Boot Extension Pack (VMware), SQLTools + PostgreSQL driver
 - Neon account — create a `routr` database, save the connection string
 - Clerk account — save publishable key, secret key, JWKS URL, issuer URI
+- Mapbox account — create a public token (scoped to `styles:read` + `directions:read`), save it as `NEXT_PUBLIC_MAPBOX_TOKEN`
 - Postman or Bruno for manual API testing
 
 ---
@@ -201,15 +202,18 @@ Any other transition throws `AppException.InvalidState`.
 
 ## Phase 9 — Deck.GL Map
 
-**Goal:** Interactive map on the trip detail page showing route and waypoint status.
+**Goal:** Interactive map on the trip detail page showing a road-following route and waypoint status.
 
 - Install `deck.gl`, `@deck.gl/react`, `react-map-gl`, `maplibre-gl`
 - `TripMap.tsx` — MapLibre base layer + Deck.GL overlay
-- `PathLayer` — polyline connecting waypoints in order
+- **Route fetching:** call `GET https://api.mapbox.com/directions/v5/mapbox/driving/{coords}?geometries=geojson&access_token=...` client-side, passing the ordered waypoint coordinates. Returns a GeoJSON LineString of road-snapped coordinates.
+- `PathLayer` — renders the Mapbox route polyline (road-following, not straight lines)
 - `ScatterplotLayer` — markers colored by status (pending=blue, arrived=green, skipped=gray)
 - `TextLayer` — order numbers on markers
 - Auto-fit viewport to bounding box of all waypoints on load
 - Click marker → open waypoint detail drawer
+
+**Route fetching approach:** done client-side in the frontend — no backend changes needed, no polyline stored in DB. The Mapbox token (`NEXT_PUBLIC_MAPBOX_TOKEN`) is a public browser token restricted to the app's URL in the Mapbox dashboard.
 
 ---
 
@@ -230,7 +234,6 @@ Any other transition throws `AppException.InvalidState`.
 ## Constraints (v1)
 
 - No geocoding — lat/lng entered manually, address is display-only
-- No road-following routes — straight lines between waypoints
 - No push notifications — SSE only
 - Single-user trips only — no sharing or collaboration
 - No route optimization — user-defined order
@@ -243,7 +246,7 @@ Any other transition throws `AppException.InvalidState`.
 ## Definition of Done (v1)
 
 - User can sign up, create a trip, add ordered waypoints with coordinates
-- Trip detail shows an interactive Deck.GL map with markers and polylines
+- Trip detail shows an interactive Deck.GL map with road-following routes (Mapbox Directions) and status-colored markers
 - User can start a trip, mark waypoints arrived/skipped, complete the trip
 - Status changes update the map in real-time via SSE without page refresh
 - Optimistic updates make status changes feel instant
