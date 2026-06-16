@@ -1,5 +1,20 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Claude Code local settings (personal, not shared)
+.claude/settings.local.json
+
+# Backend
+backend/build/
+backend/.gradle/
+backend/src/main/resources/application-local.yml
+
+# macOS
+.DS_Store
+
+# IntelliJ / IDE
+.idea/
+*.iml
+
 # dependencies
 /node_modules
 /.pnp

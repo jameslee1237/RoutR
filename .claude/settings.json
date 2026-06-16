@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "mcp__atlassian__*",
+      "mcp__claude_ai_Figma__*",
+      "mcp__figma-desktop__*"
+    ]
+  },
+  "worktree": {
+    "bgIsolation": "none"
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-api-reuse.sh",
+            "timeout": 10,
+            "statusMessage": "API reuse check..."
+          }
+        ]
+      }
+    ]
+  }
+}
