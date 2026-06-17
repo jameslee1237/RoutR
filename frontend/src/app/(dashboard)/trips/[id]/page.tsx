@@ -97,24 +97,31 @@ export default function TripDetailPage() {
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-6 py-4">
+      <div
+        className="flex shrink-0 items-center gap-3 px-6 py-4 sticky top-0 z-10"
+        style={{
+          background: 'rgba(248,250,252,0.85)',
+          backdropFilter: 'blur(8px)',
+          borderBottom: '1px solid rgba(226,232,240,0.8)',
+        }}
+      >
         <Link
           href="/trips"
-          className="shrink-0 text-slate-400 transition-colors hover:text-slate-600"
+          className="shrink-0 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
         >
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="truncate text-xl font-semibold text-slate-900">
+          <div className="flex items-center gap-2.5">
+            <h1 className="truncate text-lg font-semibold text-slate-900" style={{ letterSpacing: '-0.02em' }}>
               {trip.name}
             </h1>
             <StatusBadge status={trip.status} />
           </div>
           {trip.description && (
-            <p className="mt-0.5 truncate text-sm text-slate-500">
+            <p className="mt-0.5 truncate text-xs text-slate-500">
               {trip.description}
             </p>
           )}
@@ -129,15 +136,15 @@ export default function TripDetailPage() {
         {/* Left panel: details */}
         <div className="flex w-full shrink-0 flex-col gap-4 overflow-y-auto border-b border-slate-200 p-6 lg:w-[420px] lg:border-b-0 lg:border-r">
           {/* Control bar */}
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Trip Controls
+          <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">
+              Controls
             </h2>
             <TripControlBar trip={trip} />
           </div>
 
           {/* Waypoints */}
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
             <WaypointList
               trip={trip}
               highlightedWaypointId={highlightedWaypointId}
