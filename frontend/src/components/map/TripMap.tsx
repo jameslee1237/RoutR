@@ -5,8 +5,8 @@ import DeckGL from '@deck.gl/react'
 import { PathLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
 import { Map } from 'react-map-gl/maplibre'
 
-import type { PickingInfo } from '@deck.gl/core'
-import { WebMercatorViewport } from '@deck.gl/core'
+import type { PickingInfo } from 'deck.gl'
+import { WebMercatorViewport } from 'deck.gl'
 import type { Waypoint } from '@/types'
 import { useMapboxRoute } from '@/hooks/useMapboxRoute'
 
