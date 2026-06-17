@@ -3,6 +3,8 @@ spring:
     name: routr
   datasource:
     url: ${DATABASE_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
