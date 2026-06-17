@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import DeckGL from '@deck.gl/react'
 import { PathLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
 import { Map } from 'react-map-gl/maplibre'
-import type { ViewStateChangeParameters } from 'react-map-gl'
+
 import type { PickingInfo } from '@deck.gl/core'
 import { WebMercatorViewport } from '@deck.gl/core'
 import type { Waypoint } from '@/types'
@@ -209,7 +209,7 @@ export function TripMap({
     <div className="relative h-full w-full overflow-hidden rounded-xl border border-slate-200">
       <DeckGL
         viewState={viewState}
-        onViewStateChange={({ viewState: vs }: ViewStateChangeParameters) =>
+        onViewStateChange={({ viewState: vs }: { viewState: unknown }) =>
           setViewState(vs as ViewState)
         }
         controller
