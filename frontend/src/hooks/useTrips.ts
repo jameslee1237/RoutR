@@ -6,13 +6,15 @@ import { apiFetch } from '@/lib/api'
 import type { TripSummary } from '@/types'
 
 export function useTrips() {
-  const { getToken } = useAuth()
+  const { getToken, isSignedIn } = useAuth()
 
   return useQuery<TripSummary[]>({
     queryKey: ['trips'],
+    enabled: !!isSignedIn,
     queryFn: async () => {
-      const token = await getToken()
-      return apiFetch<TripSummary[]>('/api/trips', token!)
+      const token = await getToken({ template: 'API-TEST' })
+      if (!token) throw new Error('Not authenticated')
+      return apiFetch<TripSummary[]>('/api/trips', token)
     },
   })
 }

@@ -21,7 +21,7 @@ export function useWaypointMutations(tripId: string) {
 
   const addWaypoint = useMutation<Waypoint, Error, CreateWaypointBody>({
     mutationFn: async (body) => {
-      const token = await getToken()
+      const token = await getToken({ template: 'API-TEST' })
       return apiFetch<Waypoint>(`/api/trips/${tripId}/waypoints`, token!, {
         method: 'POST',
         body: JSON.stringify(body),
@@ -36,7 +36,7 @@ export function useWaypointMutations(tripId: string) {
     { waypointId: string; body: UpdateWaypointBody }
   >({
     mutationFn: async ({ waypointId, body }) => {
-      const token = await getToken()
+      const token = await getToken({ template: 'API-TEST' })
       return apiFetch<Waypoint>(
         `/api/trips/${tripId}/waypoints/${waypointId}`,
         token!,
@@ -48,7 +48,7 @@ export function useWaypointMutations(tripId: string) {
 
   const deleteWaypoint = useMutation<void, Error, string>({
     mutationFn: async (waypointId) => {
-      const token = await getToken()
+      const token = await getToken({ template: 'API-TEST' })
       return apiFetch<void>(
         `/api/trips/${tripId}/waypoints/${waypointId}`,
         token!,
@@ -64,7 +64,7 @@ export function useWaypointMutations(tripId: string) {
     ReorderWaypointsBody
   >({
     mutationFn: async (body) => {
-      const token = await getToken()
+      const token = await getToken({ template: 'API-TEST' })
       return apiFetch<{ ok: true }>(
         `/api/trips/${tripId}/waypoints/reorder`,
         token!,
@@ -76,7 +76,7 @@ export function useWaypointMutations(tripId: string) {
 
   const arriveAtWaypoint = useMutation<Waypoint, Error, string>({
     mutationFn: async (waypointId) => {
-      const token = await getToken()
+      const token = await getToken({ template: 'API-TEST' })
       return apiFetch<Waypoint>(
         `/api/trips/${tripId}/waypoints/${waypointId}/arrive`,
         token!,
@@ -88,7 +88,7 @@ export function useWaypointMutations(tripId: string) {
 
   const skipWaypoint = useMutation<Waypoint, Error, string>({
     mutationFn: async (waypointId) => {
-      const token = await getToken()
+      const token = await getToken({ template: 'API-TEST' })
       return apiFetch<Waypoint>(
         `/api/trips/${tripId}/waypoints/${waypointId}/skip`,
         token!,

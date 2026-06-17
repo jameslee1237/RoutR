@@ -15,7 +15,7 @@ export function useTripEvents(tripId: string) {
     let abortController: AbortController | null = null
 
     const connect = async () => {
-      const token = await getToken()
+      const token = await getToken({ template: 'API-TEST' })
       if (!token) return
 
       abortController = new AbortController()
