@@ -18,7 +18,7 @@ export function useTripMutations() {
 
   const createTrip = useMutation<Trip, Error, CreateTripBody>({
     mutationFn: async (body) => {
-      const token = await getToken()
+      const token = await getToken({ template: 'API-TEST' })
       return apiFetch<Trip>('/api/trips', token!, {
         method: 'POST',
         body: JSON.stringify(body),
@@ -33,7 +33,7 @@ export function useTripMutations() {
     { id: string; body: UpdateTripBody }
   >({
     mutationFn: async ({ id, body }) => {
-      const token = await getToken()
+      const token = await getToken({ template: 'API-TEST' })
       return apiFetch<Trip>(`/api/trips/${id}`, token!, {
         method: 'PUT',
         body: JSON.stringify(body),
@@ -44,7 +44,7 @@ export function useTripMutations() {
 
   const deleteTrip = useMutation<void, Error, string>({
     mutationFn: async (id) => {
-      const token = await getToken()
+      const token = await getToken({ template: 'API-TEST' })
       return apiFetch<void>(`/api/trips/${id}`, token!, {
         method: 'DELETE',
       })
@@ -54,7 +54,7 @@ export function useTripMutations() {
 
   const startTrip = useMutation<Trip, Error, string>({
     mutationFn: async (id) => {
-      const token = await getToken()
+      const token = await getToken({ template: 'API-TEST' })
       return apiFetch<Trip>(`/api/trips/${id}/start`, token!, {
         method: 'POST',
       })
@@ -64,7 +64,7 @@ export function useTripMutations() {
 
   const completeTrip = useMutation<Trip, Error, string>({
     mutationFn: async (id) => {
-      const token = await getToken()
+      const token = await getToken({ template: 'API-TEST' })
       return apiFetch<Trip>(`/api/trips/${id}/complete`, token!, {
         method: 'POST',
       })
@@ -74,7 +74,7 @@ export function useTripMutations() {
 
   const cancelTrip = useMutation<Trip, Error, string>({
     mutationFn: async (id) => {
-      const token = await getToken()
+      const token = await getToken({ template: 'API-TEST' })
       return apiFetch<Trip>(`/api/trips/${id}/cancel`, token!, {
         method: 'POST',
       })
